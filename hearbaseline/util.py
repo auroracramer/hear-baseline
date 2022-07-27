@@ -17,14 +17,14 @@ def frame_audio(
     sample_rate * hop_size samples. We round to the nearest sample.
 
     Args:
-        audio: input audio, expects a 2d Tensor of shape:
-            (n_sounds, num_samples)
+        audio: input audio, expects a 3d Tensor of shape:
+            (n_sounds, num_channels, num_samples)
         frame_size: the number of samples each resulting frame should be
         hop_size: hop size between frames, in milliseconds
         sample_rate: sampling rate of the input audio
 
     Returns:
-        - A Tensor of shape (n_sounds, num_frames, frame_size)
+        - A Tensor of shape (n_sounds, num_channels, num_frames, frame_size)
         - A Tensor of timestamps corresponding to the frame centers with shape:
             (n_sounds, num_frames).
     """
@@ -33,7 +33,7 @@ def frame_audio(
     # of samples. This centers the audio in the middle of each frame with respect to
     # the timestamps.
     audio = F.pad(audio, (frame_size // 2, frame_size - frame_size // 2))
-    num_padded_samples = audio.shape[1]
+    num_padded_samples = audio.shape[-1]
 
     frame_step = hop_size / 1000.0 * sample_rate
     frame_number = 0
@@ -42,7 +42,7 @@ def frame_audio(
     frame_start = 0
     frame_end = frame_size
     while True:
-        frames.append(audio[:, frame_start:frame_end])
+        frames.append(audio[:, :, frame_start:frame_end])
         timestamps.append(frame_number * frame_step / sample_rate * 1000.0)
 
         # Increment the frame_number and break the loop if the next frame end
@@ -54,8 +54,8 @@ def frame_audio(
         if not frame_end <= num_padded_samples:
             break
 
-    # Expand out the timestamps to have shape (n_sounds, num_frames)
+    # Expand out the timestamps to have shape (n_sounds, num_channels, num_frames)
     timestamps_tensor = torch.tensor(timestamps, dtype=torch.float32)
-    timestamps_tensor = timestamps_tensor.expand(audio.shape[0], -1)
+    timestamps_tensor = timestamps_tensor.expand(audio.shape[0], audio.shape[1], -1)
 
-    return torch.stack(frames, dim=1), timestamps_tensor
+    return torch.stack(frames, dim=2), timestamps_tensor
