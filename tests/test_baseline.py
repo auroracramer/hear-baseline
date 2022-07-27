@@ -22,7 +22,7 @@ class TestEmbeddingsTimestamps:
         self.device = "cuda:0" if torch.cuda.is_available() else "cpu"
         self.model = load_model()
         self.sample_rate = self.model.sample_rate
-        self.audio = torch.rand(64, 96000, device=self.device) * 2 - 1
+        self.audio = torch.rand(64, 1, 96000, device=self.device) * 2 - 1
         self.embeddings_ct, self.ts_ct = get_timestamp_embeddings(
             audio=self.audio,
             model=self.model,
@@ -166,6 +166,7 @@ class TestModel:
     def test_model_attributes(self):
         # Each model should have sample_rate and embedding size information
         assert hasattr(self.model, "sample_rate")
+        assert hasattr(self.model, "num_channels")
         assert hasattr(self.model, "embedding_size")
 
     def test_model_sliced(self):
@@ -188,19 +189,20 @@ class TestFraming:
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
         sr = 44100
+        num_channels = 1
         num_audio = 16
         duration = 1.1
         frame_size = 4096
         hop_size_ms = 25.0
 
-        audio = torch.rand((num_audio, int(sr * duration)), device=device)
+        audio = torch.rand((num_audio, num_channels, int(sr * duration)), device=device)
         frames, timestamps = frame_audio(
             audio, frame_size=frame_size, hop_size=hop_size_ms, sample_rate=sr
         )
 
         hop_size_samples = hop_size_ms / 1000.0 * sr
         expected_frames = int(sr * duration / hop_size_samples) + 1
-        expected_frames_shape = (num_audio, expected_frames, frame_size)
+        expected_frames_shape = (num_audio, num_channels, expected_frames, frame_size)
         expected_timestamps = np.arange(0, expected_frames)
         expected_timestamps = expected_timestamps * hop_size_ms
 

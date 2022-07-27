@@ -16,6 +16,7 @@ class TestTFNaiveModel:
         model = tf_baseline.load_model()
 
         assert model.sample_rate == 44100
+        assert model.num_channels == 1
         assert model.scene_embedding_size == 4096
         assert model.timestamp_embedding_size == 4096
 
@@ -62,9 +63,10 @@ class TestTFNaiveEmbeddings:
         )
 
         num_audio = 4
+        num_channels = 1
         duration = 2.0
         torch_audio = (
-            torch.rand((num_audio, int(self.torch_model.sample_rate * duration))) * 2
+            torch.rand((num_audio, num_channels, int(self.torch_model.sample_rate * duration))) * 2
         ) - 1.0
         tf_audio = tf.convert_to_tensor(torch_audio.numpy())
 
@@ -90,9 +92,10 @@ class TestTFNaiveEmbeddings:
         )
 
         num_audio = 4
+        num_channels = 1
         duration = 2.0
         torch_audio = (
-            torch.rand((num_audio, int(self.torch_model.sample_rate * duration))) * 2
+            torch.rand((num_audio, num_channels, int(self.torch_model.sample_rate * duration))) * 2
         ) - 1.0
         tf_audio = tf.convert_to_tensor(torch_audio.numpy())
 
@@ -129,7 +132,7 @@ class TestTFNaiveEmbeddings:
 
     def test_timestamps(self):
         # Test the spacing between the time stamp
-        audio = (tf.random.uniform((5, 96000)) * 2.0) - 1.0
+        audio = (tf.random.uniform((5, 1, 96000)) * 2.0) - 1.0
         emb, ts = tf_baseline.get_timestamp_embeddings(audio, model=self.tf_model)
         timestamp_diff = ts[:, 1:] - ts[:, :-1]
         assert np.all(tf.reduce_mean(timestamp_diff, axis=1) - ts[:, 1] < 1e-5)
