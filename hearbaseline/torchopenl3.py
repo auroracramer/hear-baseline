@@ -43,6 +43,7 @@ def load_model(
     model.eval()
 
     model.sample_rate = 48000
+    model.num_channels = 1
     model.embedding_size = embedding_size
     model.timestamp_embedding_size = embedding_size
     if scene_embedding_mean:
@@ -80,7 +81,7 @@ def get_timestamp_embeddings(
     the embeddings and corresponding timestamps (in milliseconds) are returned.
 
     Args:
-        audio: n_sounds x n_samples of mono audio in the range [-1, 1].
+        audio: n_sounds x n_channels x n_samples of audio in the range [-1, 1].
         model: Loaded model.
         hop_size: Hop size in milliseconds.
 
@@ -92,10 +93,18 @@ def get_timestamp_embeddings(
     """
 
     # Assert audio is of correct shape
-    if audio.ndim != 2:
+    if audio.ndim != 3:
         raise ValueError(
-            "audio input tensor must be 2D with shape (n_sounds, num_samples)"
+            "audio input tensor must be 3D with shape (n_sounds, num_channels, num_samples)"
         )
+
+    if audio.shape[1] != 1:
+        raise ValueError(
+            "audio input tensor must be mono"
+        )
+
+    # Remove channel dimension for mono model
+    audio = audio.squeeze(1)
 
     # Make sure the correct model type was passed in
     if not isinstance(model, torchopenl3.models.PytorchOpenl3):
@@ -143,7 +152,7 @@ def get_scene_embeddings(
     get_timestamp_embeddings() using torch.mean().
 
     Args:
-        audio: n_sounds x n_samples of mono audio in the range [-1, 1]. All sounds in
+        audio: n_sounds x n_channels x n_samples of audio in the range [-1, 1]. All sounds in
             a batch will be padded/trimmed to the same length.
         model: Loaded model.
 
@@ -159,13 +168,13 @@ def get_scene_embeddings(
         pad_samples = int(
             model.scene_embedding_audio_length_ms / 1000 * model.sample_rate
         )
-        if audio.shape[1] > pad_samples:
-            audio = audio[:, :pad_samples]
+        if audio.shape[-1] > pad_samples:
+            audio = audio[..., :pad_samples]
         else:
             audio = torch.nn.functional.pad(
-                audio, (0, pad_samples - audio.shape[1]), "constant", 0
+                audio, (0, pad_samples - audio.shape[-1]), "constant", 0
             )
-        assert audio.shape[1] == pad_samples
+        assert audio.shape[-1] == pad_samples
         embeddings, timestamps = get_timestamp_embeddings(
             audio, model, hop_size=SCENE_HOP_SIZE
         )

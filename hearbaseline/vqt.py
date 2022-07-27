@@ -19,6 +19,7 @@ class VQT(torch.nn.Module):
 
     # sample rate and embedding sizes are required model attributes for the HEAR API
     sample_rate = 44100
+    num_channels = 1
     # dcase baseline was 10 ms (441), but for librosa hop_length must be
     # a positive integer multiple of 2^8 for 9-octave CQT/VQT
     hop_length = 512
@@ -76,7 +77,7 @@ def get_timestamp_embeddings(
     the embeddings and corresponding timestamps (in milliseconds) are returned.
 
     Args:
-        audio: n_sounds x n_samples of mono audio in the range [-1, 1].
+        audio: n_sounds x n_channels x n_samples of audio in the range [-1, 1].
         model: Loaded model.
 
     Returns:
@@ -87,10 +88,18 @@ def get_timestamp_embeddings(
     """
 
     # Assert audio is of correct shape
-    if audio.ndim != 2:
+    if audio.ndim != 3:
         raise ValueError(
-            "audio input tensor must be 2D with shape (n_sounds, num_samples)"
+            "audio input tensor must be 3D with shape (n_sounds, num_channels, num_samples)"
         )
+
+    if audio.shape[1] != 1:
+        raise ValueError(
+            "audio input tensor must be mono"
+        )
+
+    # Remove channel dimension for mono model
+    audio = audio.squeeze(1)
 
     # Make sure the correct model type was passed in
     if not isinstance(model, VQT):
@@ -127,7 +136,7 @@ def get_scene_embeddings(
     get_timestamp_embeddings() using torch.mean().
 
     Args:
-        audio: n_sounds x n_samples of mono audio in the range [-1, 1]. All sounds in
+        audio: n_sounds x n_channels x n_samples of audio in the range [-1, 1]. All sounds in
             a batch will be padded/trimmed to the same length.
         model: Loaded model.
 

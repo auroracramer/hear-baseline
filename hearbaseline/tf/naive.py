@@ -28,6 +28,7 @@ class RandomProjectionMelEmbedding(tf.Module):
 
     # sample rate and embedding sizes are required model attributes for the HEAR API
     sample_rate = 44100
+    num_channels = 1
     embedding_size = 4096
     scene_embedding_size = embedding_size
     timestamp_embedding_size = embedding_size
@@ -110,7 +111,7 @@ def get_timestamp_embeddings(
     the embeddings and corresponding timestamps (in milliseconds) are returned.
 
     Args:
-        audio: n_sounds x n_samples of mono audio in the range [-1, 1].
+        audio: n_sounds x n_channels x n_samples of audio in the range [-1, 1].
         model: Loaded model.
         hop_size: Hop size in milliseconds.
             NOTE: Not required by the HEAR API. We add this optional parameter
@@ -124,9 +125,14 @@ def get_timestamp_embeddings(
     """
 
     # Assert audio is of correct shape
-    if audio.ndim != 2:
+    if audio.ndim != 3:
         raise ValueError(
-            "audio input tensor must be 2D with shape (n_sounds, num_samples)"
+            "audio input tensor must be 3D with shape (n_sounds, num_channels, num_samples)"
+        )
+
+    if audio.shape[1] != 1:
+        raise ValueError(
+            "audio input tensor must be mono"
         )
 
     # Make sure the correct model type was passed in
@@ -138,6 +144,8 @@ def get_timestamp_embeddings(
     frames, timestamps = frame_audio(
         audio, frame_size=model.n_fft, hop_size=hop_size, sample_rate=model.sample_rate
     )
+    # Remove channel dimension for mono model
+    frames = frames.squeeze(dim=1)
 
     # Combine all the frames from all audio batches together for batch processing
     # of frames. We'll unflatten these after processing through the model
@@ -166,7 +174,7 @@ def get_scene_embeddings(
     get_timestamp_embeddings() using tf.reduce_mean().
 
     Args:
-        audio: n_sounds x n_samples of mono audio in the range [-1, 1]. All sounds in
+        audio: n_sounds x n_channels x n_samples of audio in the range [-1, 1]. All sounds in
             a batch will be padded/trimmed to the same length.
         model: Loaded model.
 

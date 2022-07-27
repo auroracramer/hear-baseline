@@ -25,6 +25,7 @@ class TorchCrepeModel(torch.nn.Module):
 
     # sample rate and embedding sizes are required model attributes for the HEAR API
     sample_rate = SAMPLE_RATE
+    num_channels = 1
     # ???
     embedding_size = 32 * 64
     scene_embedding_size = embedding_size
@@ -94,7 +95,7 @@ def get_timestamp_embeddings(
     the embeddings and corresponding timestamps (in milliseconds) are returned.
 
     Args:
-        audio: n_sounds x n_samples of mono audio in the range [-1, 1].
+        audio: n_sounds x n_channels x n_samples of audio in the range [-1, 1].
         model: Loaded model.
         hop_size_samples: Hop size in samples.
 
@@ -106,10 +107,18 @@ def get_timestamp_embeddings(
     """
 
     # Assert audio is of correct shape
-    if audio.ndim != 2:
+    if audio.ndim != 3:
         raise ValueError(
-            "audio input tensor must be 2D with shape (n_sounds, num_samples)"
+            "audio input tensor must be 3D with shape (n_sounds, num_channels, num_samples)"
         )
+
+    if audio.shape[1] != 1:
+        raise ValueError(
+            "audio input tensor must be mono"
+        )
+
+    # Remove channel dimension for mono model
+    audio = audio.squeeze(1)
 
     # Make sure the correct model type was passed in
     if not isinstance(model, TorchCrepeModel):
@@ -157,7 +166,7 @@ def get_scene_embeddings(
     get_timestamp_embeddings() using torch.mean().
 
     Args:
-        audio: n_sounds x n_samples of mono audio in the range [-1, 1]. All sounds in
+        audio: n_sounds  x n_channels x n_samples of mono audio in the range [-1, 1]. All sounds in
             a batch will be padded/trimmed to the same length.
         model: Loaded model.
 

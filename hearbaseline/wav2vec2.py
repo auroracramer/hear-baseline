@@ -50,8 +50,9 @@ def load_model(
     if torch.cuda.is_available():
         model.cuda()
 
-    # sample rate and embedding sizes are required model attributes for the HEAR API
+    # sample rate, number of channels, and embedding sizes are required model attributes for the HEAR API
     model.sample_rate = 16000
+    model.num_channels = 1
     if model_hub.startswith("facebook/wav2vec2-base"):
         model.embedding_size = 768
     elif model_hub.startswith("facebook/wav2vec2-large"):
@@ -73,7 +74,7 @@ def get_timestamp_embeddings(
     the embeddings and corresponding timestamps (in milliseconds) are returned.
 
     Args:
-        audio: n_sounds x n_samples of mono audio in the range [-1, 1].
+        audio: n_sounds x n_channels x n_samples of audio in the range [-1, 1].
         model: Loaded model.
 
     Returns:
@@ -84,10 +85,18 @@ def get_timestamp_embeddings(
     """
 
     # Assert audio is of correct shape
-    if audio.ndim != 2:
+    if audio.ndim != 3:
         raise ValueError(
-            "audio input tensor must be 2D with shape (n_sounds, num_samples)"
+            "audio input tensor must be 3D with shape (n_sounds, num_channels, num_samples)"
         )
+
+    if audio.shape[1] != 1:
+        raise ValueError(
+            "audio input tensor must be mono"
+        )
+
+    # Remove channel dimension for mono model
+    audio = audio.squeeze(1)
 
     # Make sure the correct model type was passed in
     if not isinstance(model, HuggingFaceWav2Vec2):
@@ -144,7 +153,7 @@ def get_scene_embeddings(
     get_timestamp_embeddings() using torch.mean().
 
     Args:
-        audio: n_sounds x n_samples of mono audio in the range [-1, 1]. All sounds in
+        audio: n_sounds x n_channels x n_samples of audio in the range [-1, 1]. All sounds in
             a batch will be padded/trimmed to the same length.
         model: Loaded model.
 

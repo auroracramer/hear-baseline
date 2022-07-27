@@ -11,6 +11,7 @@ from torch import Tensor
 class VggishWrapper(torch.nn.Module):
     # sample rate and embedding sizes are required model attributes for the HEAR API
     sample_rate = 16000
+    num_channels = 1
     embedding_size = 128
     scene_embedding_size = embedding_size
     timestamp_embedding_size = embedding_size
@@ -60,7 +61,7 @@ def get_timestamp_embeddings(
     the embeddings and corresponding timestamps (in milliseconds) are returned.
 
     Args:
-        audio: n_sounds x n_samples of mono audio in the range [-1, 1].
+        audio: n_sounds x n_channels x n_samples of audio in the range [-1, 1].
         model: Loaded model.
 
     Returns:
@@ -71,14 +72,18 @@ def get_timestamp_embeddings(
     """
 
     # Assert audio is of correct shape
-    if audio.ndim != 2:
+    if audio.ndim != 3:
         raise ValueError(
-            "audio input tensor must be 2D with shape (n_sounds, num_samples)"
+            "audio input tensor must be 3D with shape (n_sounds, num_channels, num_samples)"
         )
 
-    # Make sure the correct model type was passed in
-    if not isinstance(model, VggishWrapper):
-        raise ValueError(f"Model must be an instance of {VggishWrapper.__name__}")
+    if audio.shape[1] != 1:
+        raise ValueError(
+            "audio input tensor must be mono"
+        )
+
+    # Remove channel dimension for mono model
+    audio = audio.squeeze(1)
 
     # Send the model to the same device that the audio tensor is on.
     # model = model.to(audio.device)
@@ -120,7 +125,7 @@ def get_scene_embeddings(
     get_timestamp_embeddings() using torch.mean().
 
     Args:
-        audio: n_sounds x n_samples of mono audio in the range [-1, 1]. All sounds in
+        audio: n_sounds x n_channels x n_samples of audio in the range [-1, 1]. All sounds in
             a batch will be padded/trimmed to the same length.
         model: Loaded model.
 

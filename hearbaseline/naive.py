@@ -31,6 +31,7 @@ class RandomProjectionMelEmbedding(torch.nn.Module):
 
     # sample rate and embedding sizes are required model attributes for the HEAR API
     sample_rate = 44100
+    num_channels = 1
     embedding_size = 4096
     scene_embedding_size = embedding_size
     timestamp_embedding_size = embedding_size
@@ -114,7 +115,7 @@ def get_timestamp_embeddings(
     the embeddings and corresponding timestamps (in milliseconds) are returned.
 
     Args:
-        audio: n_sounds x n_samples of mono audio in the range [-1, 1].
+        audio: n_sounds x n_channels x n_samples of audio in the range [-1, 1].
         model: Loaded model.
         hop_size: Hop size in milliseconds.
             NOTE: Not required by the HEAR API. We add this optional parameter
@@ -128,9 +129,14 @@ def get_timestamp_embeddings(
     """
 
     # Assert audio is of correct shape
-    if audio.ndim != 2:
+    if audio.ndim != 3:
         raise ValueError(
-            "audio input tensor must be 2D with shape (n_sounds, num_samples)"
+            "audio input tensor must be 3D with shape (n_sounds, num_channels, num_samples)"
+        )
+
+    if audio.shape[1] != 1:
+        raise ValueError(
+            "audio input tensor must be mono"
         )
 
     # Make sure the correct model type was passed in
@@ -150,8 +156,10 @@ def get_timestamp_embeddings(
         hop_size=hop_size,
         sample_rate=RandomProjectionMelEmbedding.sample_rate,
     )
+    # Remove channel dimension for mono model
+    frames = frames.squeeze(dim=1)
     audio_batches, num_frames, frame_size = frames.shape
-    frames = frames.flatten(end_dim=1)
+    frames = frames.flatten(end_dim=2)
 
     # We're using a DataLoader to help with batching of frames
     dataset = torch.utils.data.TensorDataset(frames)
@@ -183,7 +191,7 @@ def get_scene_embeddings(
     get_timestamp_embeddings() using torch.mean().
 
     Args:
-        audio: n_sounds x n_samples of mono audio in the range [-1, 1]. All sounds in
+        audio: n_sounds x n_channels x n_samples of audio in the range [-1, 1]. All sounds in
             a batch will be padded/trimmed to the same length.
         model: Loaded model.
 
