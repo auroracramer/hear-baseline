@@ -61,13 +61,13 @@ model = hearbaseline.load_model("saved_models/naive_baseline.pt")
 
 # Create a batch of 2 white noise clips that are 2-seconds long
 # and compute scene embeddings for each clip
-audio = torch.rand((2, model.sample_rate * 2))
+audio = torch.rand((2, model.num_channels, model.sample_rate * 2))
 embeddings = hearbaseline.get_scene_embeddings(audio, model)
 ```
 
 The `get_timestamp_embeddings` method works exactly the same but returns an array
 of embeddings computed every 25ms over the duration of the input audio. An array
-of timestamps corresponding to each embedding is also returned.
+of timestamps corresponding to each embedding is also returned. 
 
 See the [common API](https://hearbenchmark.com/hear-api.html)
 for more details.
