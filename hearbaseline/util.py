@@ -79,11 +79,11 @@ def mono_module_to_multichannel_module(module: ModuleType, num_channels: int):
 
         @property
         def timestamp_embedding_size(self):
-            return self.model.timestamp_embedding_size
+            return self.model.timestamp_embedding_size * self.num_channels
 
         @property
         def scene_embedding_size(self):
-            return self.model.scene_embedding_size
+            return self.model.scene_embedding_size * self.num_channels
 
         def forward(self, x: Tensor):
             # I don't think this is really event necessary
