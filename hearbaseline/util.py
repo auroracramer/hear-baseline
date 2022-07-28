@@ -96,9 +96,7 @@ def mono_module_to_multichannel_module(module: ModuleType, num_channels: int):
         Returns a torch.nn.Module that produces embeddings for audio.
 
         Args:
-            model_file_path: Load model checkpoint from this file path. For this baseline,
-                if no path is provided then the default random init weights for the
-                linear projection layer will be used.
+            model_file_path: Load model checkpoint from this file path.
         Returns:
             Model
         """
@@ -137,7 +135,7 @@ def mono_module_to_multichannel_module(module: ModuleType, num_channels: int):
 
         embeddings, timestamps = module.get_timestamp_embeddings(
             # Collapse sounds and channel dimensions
-            audio.reshape(num_sounds * _num_channels, 1, num_samples), model.model, *args, **kwargs
+            audio.reshape(num_sounds * model.num_channels, 1, num_samples), model.model, *args, **kwargs
         )
         _, num_timestamps, embedding_size = embeddings.shape
         # Separate sound and channel dimensions
@@ -156,9 +154,7 @@ def mono_module_to_multichannel_module(module: ModuleType, num_channels: int):
 
     def get_scene_embeddings(audio: Tensor, model: ModelWrapper, *args, **kwargs) -> Tuple[Tensor, Tensor]:
         """
-        This function returns a single embedding for each audio clip. In this baseline
-        implementation we simply summarize the temporal embeddings from
-        get_timestamp_embeddings() using torch.mean().
+        This function returns a single embedding for each audio clip.
 
         Args:
             audio: n_sounds x n_channels x n_samples of audio in the range [-1, 1]. All sounds in
