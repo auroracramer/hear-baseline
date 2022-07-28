@@ -97,7 +97,7 @@ def mono_module_to_multichannel_module(
 
     # Change class name to be specific to module
     cls_name = (
-        "".join(x.capitalize() for x in module.__name__.split('.'))
+        "".join(y.capitalize() for x in module.__name__.split('.') for y in x.split('_'))
         + f"{num_channels}ChannelModelWrapper"
     )
     # https://stackoverflow.com/a/54284495
