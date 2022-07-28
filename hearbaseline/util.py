@@ -89,6 +89,14 @@ def mono_module_to_multichannel_module(module: ModuleType, num_channels: int):
             # I don't think this is really event necessary
             self.model(x)
 
+    # Change class name to be specific to module
+    cls_name = (
+        "".join(x.capitalize() for x in module.__name__.split('.'))
+        + f"{num_channels}ChannelModelWrapper"
+    )
+    # https://stackoverflow.com/a/54284495
+    ModelWrapper.__name__ = ModelWrapper.__qualname__ = cls_name
+
     def load_model(
         model_file_path: str = "", *args, **kwargs
     ) -> torch.nn.Module:
@@ -104,7 +112,7 @@ def mono_module_to_multichannel_module(module: ModuleType, num_channels: int):
         return ModelWrapper(model, num_channels)
 
 
-    def get_timestamp_embeddings(audio: Tensor, model: ModelWrapper, *args, **kwargs) -> Tuple[Tensor, Tensor]:
+    def get_timestamp_embeddings(audio: Tensor, model: torch.nn.Module, *args, **kwargs) -> Tuple[Tensor, Tensor]:
         """
         This function returns embeddings at regular intervals centered at timestamps. Both
         the embeddings and corresponding timestamps (in milliseconds) are returned.
@@ -133,6 +141,12 @@ def mono_module_to_multichannel_module(module: ModuleType, num_channels: int):
                 f"but got {_num_channels}"
             )
 
+        # Make sure the correct model type was passed in
+        if not isinstance(model, ModelWrapper):
+            raise ValueError(
+                f"Model must be an instance of {ModelWrapper.__name__} "
+            )
+
         embeddings, timestamps = module.get_timestamp_embeddings(
             # Collapse sounds and channel dimensions
             audio.reshape(num_sounds * model.num_channels, 1, num_samples), model.model, *args, **kwargs
@@ -152,7 +166,7 @@ def mono_module_to_multichannel_module(module: ModuleType, num_channels: int):
         timestamps = timestamps[:, 0, :]
         return embeddings, timestamps
 
-    def get_scene_embeddings(audio: Tensor, model: ModelWrapper, *args, **kwargs) -> Tuple[Tensor, Tensor]:
+    def get_scene_embeddings(audio: Tensor, model: torch.nn.Module, *args, **kwargs) -> Tuple[Tensor, Tensor]:
         """
         This function returns a single embedding for each audio clip.
 
@@ -170,6 +184,12 @@ def mono_module_to_multichannel_module(module: ModuleType, num_channels: int):
             raise ValueError(
                 f"audio input tensor must be have {model.num_channels} channels, "
                 f"but got {_num_channels}"
+            )
+
+        # Make sure the correct model type was passed in
+        if not isinstance(model, ModelWrapper):
+            raise ValueError(
+                f"Model must be an instance of {ModelWrapper.__name__} "
             )
 
         embeddings = module.get_scene_embeddings(
