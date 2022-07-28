@@ -142,10 +142,10 @@ def mono_module_to_multichannel_module(module: ModuleType, num_channels: int):
         _, num_timestamps, embedding_size = embeddings.shape
         # Separate sound and channel dimensions
         embeddings = embeddings.reshape(num_sounds, model.num_channels, num_timestamps, embedding_size)
-        # Move channel dimension to the end...
-        embeddings = embeddings.permute(0, 2, 3, 1)
+        # Move channel dimension before embedding dimension...
+        embeddings = embeddings.permute(0, 2, 1, 3)
         # ...so that we can properly collapse the channels into the embedding dimension,
-        # which should be equivalent to concatenating the embeddings for each channel
+        # which should be equivalent to stacking the embeddings for each channel
         embeddings = embeddings.reshape(num_sounds, num_timestamps, embedding_size * model.num_channels)
 
         # Separate sound and channel dimensions
@@ -181,13 +181,8 @@ def mono_module_to_multichannel_module(module: ModuleType, num_channels: int):
             audio.reshape(num_sounds * _num_channels, 1, num_samples), model.model, *args, **kwargs
         )
         _, embedding_size = embeddings.shape
-        # Separate sound and channel dimensions
-        embeddings = embeddings.reshape(num_sounds, model.num_channels, embedding_size)
-        # Move channel dimension to the end...
-        embeddings = embeddings.permute(0, 2, 1)
-        # ...so that we can properly collapse the channels into the embedding dimension,
-        # which should be equivalent to concatenating the embeddings for each channel
-        embeddings = embeddings.reshape(num_sounds, embedding_size * model.num_channels)
+        # Reshape so embeddings for each channel are stacked
+        embeddings = embeddings.reshape(num_sounds, model.num_channels * embedding_size)
 
         return embeddings
 
