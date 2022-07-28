@@ -63,7 +63,13 @@ def frame_audio(
     return torch.stack(frames, dim=2), timestamps_tensor
 
 
-def mono_module_to_multichannel_module(module: ModuleType, num_channels: int):
+def mono_module_to_multichannel_module(
+    module: ModuleType, num_channels: int
+) -> Tuple[
+        Callable[..., torch.nn.Module],
+        Callable[..., Tuple[Tensor, Tensor]],
+        Callable[..., Tensor]
+    ]:
     """Returns module functions for a module extracting embeddings for
         multi-channel audio by concatenating single channel embeddings for
         each channel"""
@@ -166,7 +172,7 @@ def mono_module_to_multichannel_module(module: ModuleType, num_channels: int):
         timestamps = timestamps[:, 0, :]
         return embeddings, timestamps
 
-    def get_scene_embeddings(audio: Tensor, model: torch.nn.Module, *args, **kwargs) -> Tuple[Tensor, Tensor]:
+    def get_scene_embeddings(audio: Tensor, model: torch.nn.Module, *args, **kwargs) -> Tensor:
         """
         This function returns a single embedding for each audio clip.
 
