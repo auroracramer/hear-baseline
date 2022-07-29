@@ -159,7 +159,7 @@ def get_timestamp_embeddings(
     # Remove channel dimension for mono model
     frames = frames.squeeze(dim=1)
     audio_batches, num_frames, frame_size = frames.shape
-    frames = frames.flatten(end_dim=2)
+    frames = frames.flatten(end_dim=1)
 
     # We're using a DataLoader to help with batching of frames
     dataset = torch.utils.data.TensorDataset(frames)
