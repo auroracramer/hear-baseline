@@ -76,6 +76,7 @@ def mono_module_to_multichannel_module(
 
     class ModelWrapper(torch.nn.Module):
         def __init__(self, model: torch.nn.Module, num_channels: int):
+            super().__init__()
             self.model = model
             self.num_channels = num_channels
 
