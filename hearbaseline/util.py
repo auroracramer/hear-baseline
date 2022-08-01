@@ -92,9 +92,19 @@ def mono_module_to_multichannel_module(
         def scene_embedding_size(self):
             return self.model.scene_embedding_size * self.num_channels
 
-        def forward(self, x: Tensor):
-            # I don't think this is really event necessary
-            self.model(x)
+        def __getattr__(self, attr):
+            try:
+                val = getattr(self.model, attr)
+                # Since if a method is retrieved, it is bound to the
+                # model instance, it should be fine to fetch methods
+                # if getattr(val, "__self__", None) == self.model:
+                #     raise AttributeError
+            except AttributeError:
+                raise AttributeError(
+                    f"'{self.__class__.__name__}' object has no attribute '{attr}'"
+                )
+            return val
+
 
     # Change class name to be specific to module
     cls_name = (
