@@ -14,9 +14,8 @@ torch.backends.cudnn.deterministic = True
 
 
 class TestEmbeddingsTimestamps:
-    def setup(self, module=None):
+    def setup(self):
         self.device = "cuda:0" if torch.cuda.is_available() else "cpu"
-        self.module = module or baseline
         self.model = self.module.load_model()
         self.sample_rate = self.model.sample_rate
         self.audio = torch.rand(64, self.model.num_channels, 96000, device=self.device) * 2 - 1
@@ -28,6 +27,10 @@ class TestEmbeddingsTimestamps:
             audio=self.audio,
             model=self.model,
         )
+
+    @property
+    def module(self):
+        return baseline
 
     def teardown(self):
         del self.model
@@ -151,11 +154,14 @@ class TestEmbeddingsTimestamps:
 
 
 class TestModel:
-    def setup(self, module=None):
+    def setup(self):
         device = "cuda:0" if torch.cuda.is_available() else "cpu"
-        self.module = module or baseline
         self.model = self.module.load_model().to(device)
         self.frames = torch.rand(512, self.model.n_fft, device=device) * 2 - 1
+
+    @property
+    def module(self):
+        return baseline
 
     def teardown(self):
         del self.model
@@ -181,16 +187,18 @@ class TestModel:
         assert torch.allclose(outputs_sliced, outputs[::2])
 
 class TestStereoEmbeddingsTimestamps(TestEmbeddingsTimestamps):
-    def setup(self):
-        super().setup(stereo_baseline)
+    @property
+    def module(self):
+        return stereo_baseline
 
     # TODO: add proper test for making sure it's equivalent to treating channels
     #       as separate examples
 
 
 class TestStereoModel(TestModel):
-    def setup(self):
-        super().setup(stereo_baseline)
+    @property
+    def module(self):
+        return stereo_baseline
 
 
 class TestFraming:
