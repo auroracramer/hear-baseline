@@ -6,7 +6,7 @@ import numpy as np
 import torch
 import tensorflow as tf
 
-import hearbaseline.tf.naive as tf_baseline
+import hearbaseline.mono.tf.naive as tf_baseline
 import hearbaseline as torch_baseline
 
 

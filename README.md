@@ -10,7 +10,7 @@ However, many of them are ineffecient because of limiting assumptions
 in the original implementation (e.g. only one audio file can be
 processed at a time using their high-level API).
 
-For the HEAR Benchmark and 2021 NeurIPS evaluation, `hearbaseline.wav2vec2` and `hearbaseline.torchcrepe` baseline
+For the HEAR Benchmark and 2021 NeurIPS evaluation, `hearbaseline.mono.wav2vec2` and `hearbaseline.mono.torchcrepe` baseline
 embeddings were used.
 
 For full details on the HEAR Benchmark please visit https://hearbenchmark.com
@@ -74,9 +74,10 @@ for more details.
 
 ### Other Baselines
 
-- `hearbaseline.torchcrepe`
-- `hearbaseline.vggish`
-- `hearbaseline.vqt`
-- `hearbaseline.wav2vec2`
-- `hearbaseline.keras.naive`
-- `hearbaseline.tf.naive`
+- `hearbaseline.mono.torchcrepe`
+- `hearbaseline.mono.vggish`
+- `hearbaseline.mono.vqt`
+- `hearbaseline.mono.wav2vec2`
+- `hearbaseline.mono.keras.naive`
+- `hearbaseline.mono.tf.naive`
+- `hearbaseline.stereo.naive`

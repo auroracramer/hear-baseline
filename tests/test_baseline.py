@@ -6,8 +6,8 @@ import numpy as np
 import torch
 
 from hearbaseline.util import frame_audio
-import hearbaseline.naive as baseline
-import hearbaseline.naive_stereo as stereo_baseline
+import hearbaseline.mono.naive as mono_baseline
+import hearbaseline.stereo.naive as stereo_baseline
 
 
 torch.backends.cudnn.deterministic = True
@@ -30,7 +30,7 @@ class TestEmbeddingsTimestamps:
 
     @property
     def module(self):
-        return baseline
+        return mono_baseline
 
     def teardown(self):
         del self.model
@@ -161,7 +161,7 @@ class TestModel:
 
     @property
     def module(self):
-        return baseline
+        return mono_baseline
 
     def teardown(self):
         del self.model
