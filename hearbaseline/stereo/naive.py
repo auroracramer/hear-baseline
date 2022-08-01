@@ -5,7 +5,9 @@ This is simply a mel spectrogram followed by random projection.
 """
 
 import hearbaseline.mono.naive as naive
-from hearbaseline.mono.naive import (TIMESTAMP_HOP_SIZE, SCENE_HOP_SIZE, BATCH_SIZE)
+from hearbaseline.mono.naive import (
+    TIMESTAMP_HOP_SIZE, SCENE_HOP_SIZE, BATCH_SIZE
+)
 from hearbaseline.util import mono_module_to_multichannel_module
 
 (
