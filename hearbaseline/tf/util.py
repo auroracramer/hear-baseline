@@ -15,14 +15,14 @@ def frame_audio(
     sample_rate * hop_size samples. We round to the nearest sample.
 
     Args:
-        audio: input audio, expects a 2d Tensor of shape:
-            (n_sounds, num_samples)
+        audio: input audio, expects a 3d Tensor of shape:
+            (n_sounds, num_channels, num_samples)
         frame_size: the number of samples each resulting frame should be
         hop_size: hop size between frames, in milliseconds
         sample_rate: sampling rate of the input audio
 
     Returns:
-        - A Tensor of shape (n_sounds, num_frames, frame_size)
+        - A Tensor of shape (n_sounds, num_channels, num_frames, frame_size)
         - A Tensor of timestamps corresponding to the frame centers with shape:
             (n_sounds, num_frames).
     """
@@ -30,9 +30,9 @@ def frame_audio(
     # Zero pad the beginning and the end of the incoming audio with half a frame number
     # of samples. This centers the audio in the middle of each frame with respect to
     # the timestamps.
-    paddings = tf.constant([[0, 0], [frame_size // 2, frame_size - frame_size // 2]])
+    paddings = tf.constant([[0, 0], [0, 0], [frame_size // 2, frame_size - frame_size // 2]])
     audio = tf.pad(audio, paddings)
-    num_padded_samples = audio.shape[1]
+    num_padded_samples = audio.shape[2]
 
     # This implementation is really elegant but frame_step rounding errors
     # can accumulate into drift.
@@ -58,7 +58,7 @@ def frame_audio(
     frame_start = 0
     frame_end = frame_size
     while True:
-        frames.append(audio[:, frame_start:frame_end])
+        frames.append(audio[:, :, frame_start:frame_end])
         timestamps.append(frame_number * frame_step / sample_rate * 1000.0)
 
         # Increment the frame_number and break the loop if the next frame end
@@ -75,4 +75,4 @@ def frame_audio(
     timestamps = tf.expand_dims(timestamps, axis=0)
     timestamps = tf.repeat(timestamps, repeats=[audio.shape[0]], axis=0)
 
-    return tf.stack(frames, axis=1), timestamps
+    return tf.stack(frames, axis=2), timestamps
