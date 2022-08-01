@@ -56,9 +56,9 @@ def frame_audio(
         if not frame_end <= num_padded_samples:
             break
 
-    # Expand out the timestamps to have shape (n_sounds, num_channels, num_frames)
+    # Expand out the timestamps to have shape (n_sounds, num_frames)
     timestamps_tensor = torch.tensor(timestamps, dtype=torch.float32)
-    timestamps_tensor = timestamps_tensor.expand(audio.shape[0], audio.shape[1], -1)
+    timestamps_tensor = timestamps_tensor.expand(audio.shape[0], -1)
 
     return torch.stack(frames, dim=2), timestamps_tensor
 
