@@ -3,7 +3,7 @@ Utility functions for hear-kit
 """
 
 from types import ModuleType
-from typing import Callable, Tuple
+from typing import Callable, Iterable, Optional, Tuple
 
 import torch
 import torch.nn
@@ -64,7 +64,9 @@ def frame_audio(
 
 
 def mono_module_to_multichannel_module(
-    module: ModuleType, num_channels: int
+    module: ModuleType,
+    num_channels: int,
+    inherit_model_attrs: Optional[Iterable[str]] = None,
 ) -> Tuple[
         Callable[..., torch.nn.Module],
         Callable[..., Tuple[Tensor, Tensor]],
@@ -92,27 +94,27 @@ def mono_module_to_multichannel_module(
         def scene_embedding_size(self):
             return self.model.scene_embedding_size * self.num_channels
 
-        def __getattr__(self, attr):
-            try:
-                val = getattr(self.model, attr)
-                # Since if a method is retrieved, it is bound to the
-                # model instance, it should be fine to fetch methods
-                # if getattr(val, "__self__", None) == self.model:
-                #     raise AttributeError
-            except AttributeError:
-                raise AttributeError(
-                    f"'{self.__class__.__name__}' object has no attribute '{attr}'"
-                )
-            return val
-
 
     # Change class name to be specific to module
     cls_name = (
         "".join(y.capitalize() for x in module.__name__.split('.') for y in x.split('_'))
         + f"{num_channels}ChannelModelWrapper"
     )
+
     # https://stackoverflow.com/a/54284495
     ModelWrapper.__name__ = ModelWrapper.__qualname__ = cls_name
+
+    # Add properties for the attributes to inherit from the model
+    if inherit_model_attrs:
+        for attr in inherit_model_attrs:
+            setattr(
+                ModelWrapper,
+                attr,
+                property(
+                    lambda self: getattr(self.model, attr)
+                ),
+            )
+
 
     def load_model(
         model_file_path: str = "", *args, **kwargs
