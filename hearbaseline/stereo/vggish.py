@@ -3,7 +3,6 @@ vggish model for HEAR 2021 NeurIPS competition.
 """
 
 import hearbaseline.mono.vggish as vggish
-from hearbaseline.mono.vggish import (TIMESTAMP_HOP_SIZE, SCENE_HOP_SIZE)
 from hearbaseline.util import mono_module_to_multichannel_module
 
 

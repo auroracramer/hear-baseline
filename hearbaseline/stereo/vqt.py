@@ -6,7 +6,6 @@ The scene embeddings will be an average, i.e. only 84 dimensions.
 """
 
 import hearbaseline.mono.vqt as vqt
-from hearbaseline.mono.vqt import (TIMESTAMP_HOP_SIZE, SCENE_HOP_SIZE)
 from hearbaseline.util import mono_module_to_multichannel_module
 
 
