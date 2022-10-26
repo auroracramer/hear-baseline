@@ -35,7 +35,7 @@ def compute_stft(x: Tensor, win_length: int, hop_length: int, n_fft: int,
                                    center=center,
                                    window=torch.hann_window(win_length),
                                    pad_mode=pad_mode, # constant for zero padding
-                                   return_complex=False
+                                   return_complex=True
                         ) for ch in range(num_channels)],
                        dim=1)
     return stft
