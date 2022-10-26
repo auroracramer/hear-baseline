@@ -10,7 +10,7 @@ import librosa
 import numpy as np
 import tensorflow as tf
 
-from hearbaseline.tf.util import frame_audio
+from hearbaseline.mono.tf.util import frame_audio
 
 # Default hop_size in milliseconds
 TIMESTAMP_HOP_SIZE = 50
