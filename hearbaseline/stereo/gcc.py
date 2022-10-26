@@ -14,12 +14,9 @@ from torch import Tensor
 from hearbaseline.util import *
 
 # Parameters adapted from Urbansas
-# Default hop_size in milliseconds
-TIMESTAMP_HOP_SIZE = 50
-SCENE_HOP_SIZE = 250
-STFT_WIN_SIZE = 960
-STFT_HOP_SIZE = 480
-n_fft = STFT_WIN_SIZE
+STFT_WIN_LENGTH = 960
+STFT_HOP_LENGTH = 480
+n_fft = STFT_WIN_LENGTH
 
 # Number of frames to batch process for timestamp embeddings
 BATCH_SIZE = 512
@@ -100,9 +97,6 @@ def load_model(model_file_path: str = "") -> torch.nn.Module:
 def get_timestamp_embeddings(
     audio: Tensor,
     model: torch.nn.Module,
-    hop_size: float = TIMESTAMP_HOP_SIZE,
-    win_length: int = STFT_WIN_SIZE,
-    hop_length: int = STFT_HOP_SIZE
 ) -> Tuple[Tensor, Tensor]:
     """
     This function returns embeddings at regular intervals centered at timestamps. Both
@@ -111,9 +105,6 @@ def get_timestamp_embeddings(
     Args:
         audio: n_sounds x n_channels x n_samples of audio in the range [-1, 1].
         model: Loaded model.
-        hop_size: Hop size in milliseconds.
-            NOTE: Not required by the HEAR API. We add this optional parameter
-            to improve the efficiency of scene embedding.
 
     Returns:
         - Tensor: embeddings, A float32 Tensor with shape (n_sounds, n_timestamps,
@@ -142,46 +133,31 @@ def get_timestamp_embeddings(
     # Send the model to the same device that the audio tensor is on.
     model = model.to(audio.device)
 
-    # Split the input audio signals into frames and then flatten to create a tensor
-    # of audio frames that can be batch processed.
-    frames, timestamps = frame_audio(
-        audio,
-        frame_size=16000, # to match size of model audio input (2, )
-        hop_size=hop_size,
-        sample_rate=STFT2GCCPhat.sample_rate,
-    ) # frames: (n_sounds, 2 num_channels, num_frames, 16000 frame_size)
-    # Remove channel dimension for mono model
-    frames = frames.squeeze(dim=1) # ignore for binaural
-    audio_batches, num_channels, num_frames, frame_size = frames.shape
-    # frames = frames.flatten(end_dim=1)
-    # stack first two dimensions so for mono it's (sounds*frames, frame size)
-    frames = frames.reshape(-1, frames.shape[1], frames.shape[3]) # reshape to stack binaural frames
-
-    # convert frames to stft
-    stft = Tensor(compute_stft(frames,
-                               win_length=win_length,
-                               hop_length=hop_length,
+    # n_sounds x n_channels x n_samples
+    # compute stft
+    stft = Tensor(compute_stft(audio,
+                               win_length=STFT_WIN_LENGTH,
+                               hop_length=STFT_HOP_LENGTH,
                                n_fft=n_fft,
                                pad_mode="constant",
                                center=True))
 
-
-    # We're using a DataLoader to help with batching of frames
-    dataset = torch.utils.data.TensorDataset(stft)
-    loader = torch.utils.data.DataLoader(
-        dataset, batch_size=BATCH_SIZE, shuffle=False, drop_last=False
-    )
-
     # Put the model into eval mode, and not computing gradients while in inference.
     # Iterate over all batches and accumulate the embeddings for each frame.
     model.eval()
+    hop_size = STFT_HOP_LENGTH / float(model.sample_rate)
     with torch.no_grad():
-        embeddings_list = [model(batch[0]) for batch in loader]
+        # embeddings: (N,comb,T,S)
+        embeddings = model(stft)
 
-    # Concatenate mini-batches back together and unflatten the frames
-    # to reconstruct the audio batches
-    embeddings = torch.cat(embeddings_list, dim=0)
-    embeddings = embeddings.unflatten(0, (audio_batches, num_frames))
+    n_sounds, n_comb, n_time, n_freq = embeddings.shape
+    # Swap channel-combination and time dimension
+    embeddings.transpose(1, 2)
+    # Combine "comb" and "n_freq" dimensions
+    embeddings = embeddings.reshape(n_sounds, n_time, n_comb * n_freq)
+
+    # Create time stamps from hop_size
+    timestamps = (torch.arange(n_time) * hop_size).repeat(n_sounds, 1)
 
     return embeddings, timestamps
 
@@ -210,7 +186,7 @@ def get_scene_embeddings(audio: Tensor, model: torch.nn.Module, *args, **kwargs)
     # audio = audio.reshape(num_sounds * _num_channels, 1, num_samples)
 
     # multi-channel input to multi-channel model
-    embeddings, _ = get_timestamp_embeddings(audio, model, hop_size=SCENE_HOP_SIZE)
+    embeddings, _ = get_timestamp_embeddings(audio, model)
     # averaging over frames
     # sounds * frames * features
     embeddings = torch.mean(embeddings, dim=1)
