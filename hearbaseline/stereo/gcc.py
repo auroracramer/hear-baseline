@@ -82,7 +82,7 @@ class STFT2GCCPhat(nn.Module):
 
         return torch.stack(out_list, dim=1)
 
-def load_model() -> torch.nn.Module:
+def load_model(model_file_path: str = "") -> torch.nn.Module:
     """
     Returns a torch.nn.Module that produces embeddings for audio.
 
