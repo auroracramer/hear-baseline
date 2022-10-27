@@ -135,12 +135,12 @@ def get_timestamp_embeddings(
 
     # n_sounds x n_channels x n_samples
     # compute stft
-    stft = Tensor(compute_stft(audio,
-                               win_length=STFT_WIN_LENGTH,
-                               hop_length=STFT_HOP_LENGTH,
-                               n_fft=n_fft,
-                               pad_mode="constant",
-                               center=True))
+    stft = torch.tensor(
+        compute_stft(
+            audio, win_length=STFT_WIN_LENGTH, hop_length=STFT_HOP_LENGTH,
+            n_fft=n_fft, pad_mode="constant", center=True
+        )
+    )
 
     # Put the model into eval mode, and not computing gradients while in inference.
     # Iterate over all batches and accumulate the embeddings for each frame.
