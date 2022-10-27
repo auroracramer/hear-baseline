@@ -145,7 +145,7 @@ def get_timestamp_embeddings(
     # Put the model into eval mode, and not computing gradients while in inference.
     # Iterate over all batches and accumulate the embeddings for each frame.
     model.eval()
-    hop_size = STFT_HOP_LENGTH / float(model.sample_rate)
+    hop_size = (STFT_HOP_LENGTH / float(model.sample_rate)) * 1000.0
     with torch.no_grad():
         # embeddings: (N,comb,T,S)
         embeddings = model(stft)
