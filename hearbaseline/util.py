@@ -9,6 +9,7 @@ import torch
 import torch.nn
 import torch.nn.functional as F
 from torch import Tensor
+import tensorflow as tf
 import numpy as np
 
 def compute_stft(x: Tensor, win_length: int, hop_length: int, n_fft: int,
@@ -95,6 +96,7 @@ def frame_audio(
 def mono_module_to_multichannel_module(
     module: ModuleType,
     num_channels: int,
+    backend: str = "torch",
     inherit_model_attrs: Optional[Iterable[str]] = None,
 ) -> Tuple[
         Callable[..., torch.nn.Module],
@@ -105,8 +107,23 @@ def mono_module_to_multichannel_module(
         multi-channel audio by concatenating single channel embeddings for
         each channel"""
 
-    class ModelWrapper(torch.nn.Module):
-        def __init__(self, model: torch.nn.Module, num_channels: int):
+    if backend == "torch":
+        Module_ = torch.nn.Module
+        Tensor_ = torch.Tensor
+        reshape_ = lambda x, shape: x.reshape(*shape)
+        permute_ = lambda x, perm: x.permute(*perm)
+    elif backend in ("tf", "keras"):
+        Module_ = tf.Module if backend == "tf" else tf.keras.Model
+        Tensor_ = tf.Tensor
+        reshape_ = lambda x, shape: tf.reshape(x, shape)
+        permute_ = lambda x, perm: tf.transpose(x, perm=perm)
+    else:
+        raise ValueError(
+            f"Invalid backend: {backend}, must be 'torch', 'tf', or 'keras'"
+        )
+
+    class ModelWrapper(Module_):
+        def __init__(self, model: Module_, num_channels: int):
             super().__init__()
             self.model = model
             self.num_channels = num_channels
@@ -129,7 +146,6 @@ def mono_module_to_multichannel_module(
         "".join(y.capitalize() for x in module.__name__.split('.') for y in x.split('_'))
         + f"{num_channels}ChannelModelWrapper"
     )
-
     # https://stackoverflow.com/a/54284495
     ModelWrapper.__name__ = ModelWrapper.__qualname__ = cls_name
 
@@ -144,10 +160,9 @@ def mono_module_to_multichannel_module(
                 ),
             )
 
-
     def load_model(
         model_file_path: str = "", *args, **kwargs
-    ) -> torch.nn.Module:
+    ) -> Module_:
         """
         Returns a torch.nn.Module that produces embeddings for audio.
 
@@ -160,7 +175,7 @@ def mono_module_to_multichannel_module(
         return ModelWrapper(model, num_channels)
 
 
-    def get_timestamp_embeddings(audio: Tensor, model: torch.nn.Module, *args, **kwargs) -> Tuple[Tensor, Tensor]:
+    def get_timestamp_embeddings(audio: Tensor_, model: Module_, *args, **kwargs) -> Tuple[Tensor_, Tensor_]:
         """
         This function returns embeddings at regular intervals centered at timestamps. Both
         the embeddings and corresponding timestamps (in milliseconds) are returned.
@@ -170,9 +185,9 @@ def mono_module_to_multichannel_module(
             model: Loaded model.
 
         Returns:
-            - Tensor: embeddings, A float32 Tensor with shape (n_sounds, n_timestamps,
+            - Tensor_: embeddings, A float32 Tensor with shape (n_sounds, n_timestamps,
                 model.timestamp_embedding_size).
-            - Tensor: timestamps, Centered timestamps in milliseconds corresponding
+            - Tensor_: timestamps, Centered timestamps in milliseconds corresponding
                 to each embedding in the output. Shape: (n_sounds, n_timestamps).
         """
 
@@ -195,26 +210,28 @@ def mono_module_to_multichannel_module(
                 f"Model must be an instance of {ModelWrapper.__name__} "
             )
 
+
         embeddings, timestamps = module.get_timestamp_embeddings(
             # Collapse sounds and channel dimensions
-            audio.reshape(num_sounds * model.num_channels, 1, num_samples), model.model, *args, **kwargs
+            reshape_(audio, (num_sounds * model.num_channels, 1, num_samples)),
+            model.model, *args, **kwargs
         )
         _, num_timestamps, embedding_size = embeddings.shape
         # Separate sound and channel dimensions
-        embeddings = embeddings.reshape(num_sounds, model.num_channels, num_timestamps, embedding_size)
+        embeddings = reshape_(embeddings, (num_sounds, model.num_channels, num_timestamps, embedding_size))
         # Move channel dimension before embedding dimension...
-        embeddings = embeddings.permute(0, 2, 1, 3)
+        embeddings = permute_(embeddings, (0, 2, 1, 3))
         # ...so that we can properly collapse the channels into the embedding dimension,
         # which should be equivalent to stacking the embeddings for each channel
-        embeddings = embeddings.reshape(num_sounds, num_timestamps, embedding_size * model.num_channels)
+        embeddings = reshape_(embeddings, (num_sounds, num_timestamps, embedding_size * model.num_channels))
 
         # Separate sound and channel dimensions
-        timestamps = timestamps.reshape(num_sounds, model.num_channels, num_timestamps)
+        timestamps = reshape_(timestamps, (num_sounds, model.num_channels, num_timestamps))
         # Timestamps should be same for all channels, so just take the first channel's timestamps
         timestamps = timestamps[:, 0, :]
         return embeddings, timestamps
 
-    def get_scene_embeddings(audio: Tensor, model: torch.nn.Module, *args, **kwargs) -> Tensor:
+    def get_scene_embeddings(audio: Tensor_, model: Module_, *args, **kwargs) -> Tensor_:
         """
         This function returns a single embedding for each audio clip.
 
@@ -224,7 +241,7 @@ def mono_module_to_multichannel_module(
             model: Loaded model.
 
         Returns:
-            - embeddings, A float32 Tensor with shape
+            - embeddings, A float32 Tensor_ with shape
                 (n_sounds, model.scene_embedding_size).
         """
         num_sounds, _num_channels, num_samples = audio.shape
@@ -242,11 +259,12 @@ def mono_module_to_multichannel_module(
 
         embeddings = module.get_scene_embeddings(
             # Collapse sounds and channel dimensions
-            audio.reshape(num_sounds * _num_channels, 1, num_samples), model.model, *args, **kwargs
+            reshape_(audio, (num_sounds * _num_channels, 1, num_samples)),
+            model.model, *args, **kwargs
         )
         _, embedding_size = embeddings.shape
         # Reshape so embeddings for each channel are stacked
-        embeddings = embeddings.reshape(num_sounds, model.num_channels * embedding_size)
+        embeddings = reshape_(embeddings, (num_sounds, model.num_channels * embedding_size))
 
         return embeddings
 
