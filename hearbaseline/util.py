@@ -12,15 +12,18 @@ from torch import Tensor
 import tensorflow as tf
 import numpy as np
 
-def compute_stft(x: Tensor, win_length: int, hop_length: int, n_fft: int,
-                 pad_mode: str = "constant", center: bool = True):
+def compute_stft(
+    x: Tensor, win_length: int, hop_length: int, n_fft: int,
+    pad_mode: str = "constant", center: bool = True,
+    window: Optional[Tensor] = None,
+):
     """
     Args:
         x: time-domain float32 tensor (N,S) or (N,ch,S)
             N: batch size
             ch: number of channels, optional
             S: number of samples
-    Returns: (N,T,F) or (N,ch,T,F) complex64 tensor
+    Returns: (N,F,T,F) or (N,ch,T,F) complex64 tensor
             N: batch size
             ch: number of channels, optional
             T: time frames
@@ -29,16 +32,26 @@ def compute_stft(x: Tensor, win_length: int, hop_length: int, n_fft: int,
     num_channels = x.shape[1]
     win_length = int(win_length) if win_length is not None else n_fft
 
-    stft = torch.stack([torch.stft(input=x[:, ch],
-                                   win_length=win_length,
-                                   hop_length=hop_length,
-                                   n_fft=n_fft,
-                                   center=center,
-                                   window=torch.hann_window(win_length),
-                                   pad_mode=pad_mode, # constant for zero padding
-                                   return_complex=True
-                        ) for ch in range(num_channels)],
-                       dim=1)
+    stft = torch.stack(
+        [
+            torch.stft(
+                input=x[:, ch],
+                win_length=win_length,
+                hop_length=hop_length,
+                n_fft=n_fft,
+                center=center,
+                window=(
+                    window if (window is not None)
+                    else torch.hann_window(win_length)
+                ),
+                pad_mode=pad_mode, # constant for zero padding
+                return_complex=True
+            )
+            for ch in range(num_channels)
+        ],
+        dim=1
+    ).transpose(-2, -1)
+
     return stft
 
 def frame_audio(

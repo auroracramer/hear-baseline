@@ -8,10 +8,10 @@ from collections import OrderedDict
 import math
 from typing import Optional, Tuple
 
-import librosa
 import torch
 import torch.fft
 from torch import Tensor
+from torchaudio.functional import amplitude_to_DB, melscale_fbanks
 
 from hearbaseline.util import frame_audio, compute_stft
 
@@ -67,8 +67,12 @@ class RandomProjectionMelspecGCCEmbedding(torch.nn.Module):
         self.register_buffer("window", torch.hann_window(self.n_fft))
 
         # Create a mel filter buffer.
-        mel_scale: Tensor = torch.tensor(
-            librosa.filters.mel(self.sample_rate, n_fft=self.n_fft, n_mels=self.n_mels)
+        mel_scale: Tensor = melscale_fbanks(
+            n_freqs=(self.n_fft // 2) + 1,
+            f_min=0,
+            f_max=self.sample_rate / 2, # nyquist
+            n_mels=self.n_mels,
+            sample_rate=self.sample_rate
         )
         self.register_buffer("mel_scale", mel_scale)
 
@@ -102,19 +106,26 @@ class RandomProjectionMelspecGCCEmbedding(torch.nn.Module):
                 self.seed = v
 
     def compute_melspec(self, stft: Tensor):
+        # Compute power spectrogram
         spec = torch.abs(stft) ** 2.0
-        # Apply the mel-scale filter to the magnitude spectrogram
-        spec = torch.matmul(spec, self.mel_scale.transpose(0, 1))
+        # Apply the mel-scale filter to the power spectrogram
+        spec = torch.matmul(spec, self.mel_scale)
 
-        # Downsample
+        # Optionally downsample
         if self.downsample is not None:
             spec = torch.nn.functional.avg_pool2d(
                 spec,
                 kernel_size=(self.downsample, self.downsample),
             )
         
-        # Apply log1p to spectrogram
-        spec = torch.log1p(spec)
+        # Convert to decibels
+        spec = amplitude_to_DB(
+            spec,
+            multiplier=20.0,
+            amin=1e-10,
+            db_multiplier=0.0,
+            top_db=80,
+        )
 
         return spec
     
@@ -133,7 +144,7 @@ class RandomProjectionMelspecGCCEmbedding(torch.nn.Module):
                 out_list.append(gcc_phat)
         gcc_phat = torch.stack(out_list, dim=1)
         # Apply the mel-scale filter to the GCC-PHAT values
-        gcc_phat = torch.matmul(gcc_phat, self.mel_scale.transpose(0, 1))
+        gcc_phat = torch.matmul(gcc_phat, self.mel_scale)
 
         # Downsample
         if self.downsample is not None:
@@ -155,6 +166,7 @@ class RandomProjectionMelspecGCCEmbedding(torch.nn.Module):
             self.n_fft,
             pad_mode="constant",
             center=True,
+            window=self.window,
         )
         spec = self.compute_melspec(stft)
         gcc_phat = self.compute_gcc(stft)
