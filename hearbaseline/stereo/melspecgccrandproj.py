@@ -72,7 +72,9 @@ class RandomProjectionMelspecGCCEmbedding(torch.nn.Module):
             f_min=0,
             f_max=self.sample_rate / 2, # nyquist
             n_mels=self.n_mels,
-            sample_rate=self.sample_rate
+            sample_rate=self.sample_rate,
+            mel_scale="htk",
+            norm=None,
         )
         self.register_buffer("mel_scale", mel_scale)
 
