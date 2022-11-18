@@ -64,7 +64,7 @@ class RandomProjectionMelspecGCCEmbedding(torch.nn.Module):
         torch.random.manual_seed(self.seed)
 
         # Create a Hann window buffer to apply to frames prior to FFT.
-        self.register_buffer("window", torch.hann_window(self.n_fft))
+        self.register_buffer("window", torch.hann_window(self.win_length))
 
         # Create a mel filter buffer.
         mel_scale: Tensor = melscale_fbanks(
