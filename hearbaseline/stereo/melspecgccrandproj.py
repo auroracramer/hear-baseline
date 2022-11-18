@@ -134,7 +134,7 @@ class RandomProjectionMelspecGCCEmbedding(torch.nn.Module):
     def compute_gcc(self, stft: Tensor):
         num_channels = stft.shape[1]
         assert num_channels == self.num_channels
-        # compute gcc_phat : (N,comb,T,F)
+        # compute gcc_phat : (N,comb,T,S)
         out_list = []
         for ch1 in range(num_channels - 1):
             for ch2 in range(ch1 + 1, num_channels):
@@ -143,10 +143,16 @@ class RandomProjectionMelspecGCCEmbedding(torch.nn.Module):
                 xcc = torch.angle(x1 * torch.conj(x2))
                 xcc = torch.exp(1j * xcc.type(torch.complex64))
                 gcc_phat = torch.fft.irfft(xcc)
+                # Just get a subset of GCC values to match dimensionality
+                gcc_phat = torch.cat(
+                    [
+                        gcc_phat[..., -self.n_mels // 2:],
+                        gcc_phat[..., :self.n_mels // 2],
+                    ],
+                    dim=-1,
+                )
                 out_list.append(gcc_phat)
         gcc_phat = torch.stack(out_list, dim=1)
-        # Apply the mel-scale filter to the GCC-PHAT values
-        gcc_phat = torch.matmul(gcc_phat, self.mel_scale)
 
         # Downsample
         if self.downsample is not None:
