@@ -44,6 +44,7 @@ class RandomProjectionMelspecGCCEmbedding(torch.nn.Module):
     embedding_size = 128
     scene_embedding_size = embedding_size
     timestamp_embedding_size = embedding_size
+    window_size = WINDOW_SIZE
     hop_size = TIMESTAMP_HOP_SIZE
 
     # These attributes are specific to this baseline model
@@ -78,7 +79,7 @@ class RandomProjectionMelspecGCCEmbedding(torch.nn.Module):
         )
         self.register_buffer("mel_scale", mel_scale)
 
-        self._num_frames = int((int((WINDOW_SIZE / 1000.0) * self.sample_rate)) / self.hop_length + 1)
+        self._num_frames = int((self.window_size / 1000.0) * self.sample_rate) // self.hop_length + 1
         self._num_combs = nCr(self.num_channels, 2)
         self.input_size = self._num_frames * self.n_mels * (self.num_channels + self._num_combs)
 
@@ -92,6 +93,8 @@ class RandomProjectionMelspecGCCEmbedding(torch.nn.Module):
         for k, v in model_options.items():
             if   k == "hop_size":
                 self.hop_size = v
+            if   k == "window_size":
+                self.window_size = v
             elif k == "seed":
                 self.seed = v
             elif k == "embedding_size":
@@ -270,7 +273,7 @@ def get_timestamp_embeddings(
     # of audio frames that can be batch processed.
     frames, timestamps = frame_audio(
         audio,
-        frame_size=WINDOW_SIZE,
+        frame_size=int((model.window_size / 1000.0) * model.sample_rate),
         hop_size=hop_size,
         sample_rate=RandomProjectionMelspecGCCEmbedding.sample_rate,
     )
