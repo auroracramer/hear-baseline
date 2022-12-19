@@ -17,7 +17,7 @@ from hearbaseline.util import frame_audio, compute_stft
 
 WINDOW_SIZE = 1000 # 1 s window
 # Default hop_size in milliseconds
-TIMESTAMP_HOP_SIZE = 100
+TIMESTAMP_HOP_SIZE = 50
 SCENE_HOP_SIZE = 250
 
 # Number of frames to batch process for timestamp embeddings
